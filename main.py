@@ -2,6 +2,7 @@ from prefect import flow, task
 from prefect_airbyte.connections import trigger_sync
 from prefect_dbt.cli.commands import trigger_dbt_cli_command
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
