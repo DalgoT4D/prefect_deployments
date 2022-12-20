@@ -1,4 +1,8 @@
 logs
 prefect-env
+dbt-env
 .env
 stir
+
+# prefect artifacts
+.prefectignore
