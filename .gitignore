@@ -2,7 +2,11 @@ logs
 prefect-env
 dbt-env
 .env
-stir
+dbt/
+
+.DS_store
 
 # prefect artifacts
 .prefectignore
+
+*.json
