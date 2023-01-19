@@ -57,6 +57,3 @@ def run_dbt_flow():
 
       #dbt transform
       run_dbt_transform()
-
-if __name__ == "__main__":
-      run_dbt_flow()
