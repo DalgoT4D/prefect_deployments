@@ -39,6 +39,13 @@ def run_dbt_test():
     )
     return 1
 
+@flow(name='generate-docs')
+def generate_dbt_docs():
+    trigger_dbt_cli_command(
+        command="dbt docs generate", project_dir='dbt'
+    )
+    return 1
+
 @flow(name="dbt-transform")
 def run_dbt_transform():
     

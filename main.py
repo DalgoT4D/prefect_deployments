@@ -25,3 +25,8 @@ def run_dbt_flow():
 
       #dbt transform
       run_dbt_transform()
+
+@flow(name="update-dbt-docs")
+def update_dbt_docs():
+
+      generate_dbt_docs()
