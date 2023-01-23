@@ -44,11 +44,12 @@ def generate_dbt_docs():
     trigger_dbt_cli_command(
         command="dbt docs generate", project_dir='dbt'
     )
+
     # kills docs server and start again
     shell_run_command('kill -9 $(lsof -t -i:4500 -sTCP:LISTEN)')
 
     # start a new server at 4500 for dbt docs
-    shell_run_command('cd dbt/ && screen -S dbt_docs_server -dm dbt docs serve --port 4500')
+    shell_run_command('screen -S dbt_docs_server -dm dbt docs serve --port 4500', dir='dbt')
 
     return 1
 
