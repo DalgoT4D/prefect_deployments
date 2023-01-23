@@ -1,16 +1,15 @@
 ###
 ### A complete description of a Prefect Deployment for flow 'orchestrate-dbt'
 ###
-name: dost-orchestrate-dbt
+name: orchestrate-dbt-deployment
 description: null
-version: 61247154705433137246cd6f816e8246
+version: 87f247fa786363062ddd8ab84b1ac239
 # The work queue that will handle this deployment's runs
 work_queue_name: default
 tags:
-  - staging
+- staging
 parameters: {}
-schedule:
-  interval: 3600
+schedule: null
 infra_overrides: {}
 infrastructure:
   type: process
