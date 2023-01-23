@@ -53,6 +53,8 @@ def run_dbt_transform():
 
     run_dbt_deps()
 
+    generate_dbt_docs()
+
     run_dbt_source_snapshot_freshness()
 
     run_dbt_run()
