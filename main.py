@@ -26,5 +26,5 @@ def run_dbt_flow():
       #dbt transform
       run_dbt_transform()
 
-
-run_dbt_flow()
+if __name__ == 'main':
+      run_dbt_flow()
