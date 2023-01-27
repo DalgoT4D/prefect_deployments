@@ -2,14 +2,18 @@ from prefect import flow
 from prefect_dbt.cli.commands import trigger_dbt_cli_command
 from prefect_shell import shell_run_command
 from dotenv import load_dotenv
+from pathlib import Path
 import os
 
 load_dotenv()
 
 @flow(name="github-pull")
 def pull_dost_github_repo():
-      shell_run_command('rm -rf dbt && git clone '+ os.getenv('DOST_GITHUB_URL'))
-      return 1
+        if Path('dbt').is_dir():
+            shell_run_command('cd dbt && git pull')
+        else:
+            shell_run_command('rm -rf dbt && git clone '+ os.getenv('DOST_GITHUB_URL'))
+        return 1
 
 @flow(name='dbt-deps')
 def run_dbt_deps():
