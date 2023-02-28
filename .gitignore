@@ -1,8 +1,12 @@
 logs
 prefect-env
 dbt-env
-.env
+.*env
+*venv
 dbt/
+
+.*yaml
+.*yml
 
 .DS_store
 
