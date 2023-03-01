@@ -5,6 +5,8 @@ dbt-env
 *venv
 dbt/
 
+*.pyc
+
 .*yaml
 .*yml
 
@@ -13,4 +15,4 @@ dbt/
 # prefect artifacts
 .prefectignore
 
-*.json
+config.json

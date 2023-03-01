@@ -1,62 +1,102 @@
-from prefect import flow, task
-from prefect_airbyte.connections import trigger_sync
-from prefect_dbt.cli.commands import trigger_dbt_cli_command
-from prefect_shell import shell_run_command
+import sys, getopt, argparse, json, os
+from pydantic import BaseModel
 from dotenv import load_dotenv
-import os
+from typing import List
+from pathlib import Path
+from prefect.deployments import Deployment
 
+from tasks.Dbt import Dbt
+from tasks.Airbyte import Airbyte
+from flows.Flow import Flow
+
+# Load env
 load_dotenv()
 
-@flow(name="airbyte-sync")
-def run_airbyte_sync():
-      trigger_sync(
-            connection_id=os.getenv('DOST_AIRBYTE_CONNECTION'),
-            poll_interval_s=3,
-            status_updates=True
-      )
-      return 1
+# Load config
 
-@flow(name="github-pull")
-def pull_dost_github_repo():
-      shell_run_command('rm -rf dbt && git clone '+ os.getenv('DOST_GITHUB_URL'))
-      return 1
+class Organization(BaseModel):
+    name: str = None
+    connection_ids: List[str] = []
+    dbt_dir: str = None
 
-@flow(name="dbt-transform")
-def run_dbt_transform():
-      trigger_dbt_cli_command(
-            command="dbt deps", project_dir='dbt'
-      )
-      trigger_dbt_cli_command(
-            command="dbt run", project_dir='dbt'
-      )
-      return 1
+    def __init__(self, name: str, connection_ids: List[str], dbt_dir: str):
+        super().__init__()
 
-@flow(name="orchestration-flow")
-def run_flow():
+        self.name = name
+        self.connection_ids = connection_ids
+        self.dbt_dir = dbt_dir
+        
+    def deploy(self):
+        airbyte_objs = []
+        for connection_id in self.connection_ids:
+            airbyte = Airbyte(connection_id=connection_id)
+            airbyte_objs.append(airbyte)
 
-      #syncing airbyte
-      run_airbyte_sync()
+        dbt_obj = Dbt(self.dbt_dir, os.getenv('DBT_VENV'))
 
-      # pull dbt repo
-      pull_dost_github_repo()
 
-      #dbt transform
-      run_dbt_transform()
+        for airbyte_obj in airbyte_objs:
 
-@flow(name="orchestrate-airbyte")
-def run_airbyte_flow():
+            flow = Flow(airbyte=airbyte_obj, dbt=dbt_obj, org_name=self.name)
 
-      #syncing airbyte
-      run_airbyte_sync()
+            # Deploy a dbt flow
+            Deployment.build_from_flow(
+                flow=flow.dbt_flow.with_options(name=f'{self.name}_dbt_flow'),
+                name=f"{self.name} - dbt",
+                work_queue_name="ddp",
+                tags = [self.name],
+                apply=True
+            )
 
-@flow(name="orchestrate-dbt")
-def run_dbt_flow():
+            # Deploy a airbyte flow
+            Deployment.build_from_flow(
+                flow=flow.airbyte_flow.with_options(name=f'{self.name}_airbyte_flow'),
+                name=f"{self.name} - airbyte",
+                work_queue_name="ddp",
+                tags = [airbyte.connection_id, self.name],
+                apply=True,
+            )
 
-      # pull dbt repo
-      pull_dost_github_repo()
-
-      #dbt transform
-      run_dbt_transform()
+            # Deploy a airbyte + dbt flow
+            Deployment.build_from_flow(
+                flow=flow.airbyte_dbt_flow.with_options(name=f'{self.name}_airbyte_dbt_flow'),
+                name=f"{self.name} - airbyte + dbt",
+                work_queue_name="ddp",
+                tags = [airbyte.connection_id, self.name],
+                apply=True
+            )
 
 if __name__ == "__main__":
-      run_dbt_flow()
+
+    try:
+        config = None
+        if not Path('config.json').is_file():
+            raise Exception('Config file not found')
+
+        with open('config.json') as f:
+            config = json.load(f)
+
+        parser = argparse.ArgumentParser(description='Prefect deployment of NGOs')
+        parser.add_argument(
+            '--deploy',
+            required=True,
+            choices=['stir', 'sneha'],
+            help='please enter the name of the NGO',
+            metavar='<org_name>'
+        )
+        args = parser.parse_args()
+
+        if args.deploy not in config:
+            raise Exception(f'Config for {args.deploy} org not found')
+        
+        org_name = args.deploy
+        connection_ids = config[org_name]['connection_ids']
+        dbt_dir = config[org_name]['dbt_dir']
+        
+        organization = Organization(org_name, connection_ids, dbt_dir)
+
+        organization.deploy()
+
+    except Exception as e:
+
+        print(e)

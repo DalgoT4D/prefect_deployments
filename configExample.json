@@ -1,0 +1,10 @@
+{
+    "stir": {
+        "dbt_dir": "/Path/to/dbt/code",
+        "connection_ids": ["list of connection ids"]
+    },
+    "sneha": {
+        "dbt_dir": "/Path/to/dbt/code",
+        "connection_ids": ["list of connection ids"]
+    }
+}
