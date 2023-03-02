@@ -1,72 +1,19 @@
 import sys, getopt, argparse, json, os
-from pydantic import BaseModel
 from dotenv import load_dotenv
-from typing import List
 from pathlib import Path
-from prefect.deployments import Deployment
+import asyncio
+from sqlalchemy import create_engine
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from sqlalchemy.ext.asyncio import create_async_engine, async_session, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
-from tasks.Dbt import Dbt
-from tasks.Airbyte import Airbyte
-from flows.Flow import Flow
+from organization.Organization import Organization
 
 # Load env
 load_dotenv()
 
 # Load config
-
-class Organization(BaseModel):
-    name: str = None
-    connection_ids: List[str] = []
-    dbt_dir: str = None
-
-    def __init__(self, name: str, connection_ids: List[str], dbt_dir: str):
-        super().__init__()
-
-        self.name = name
-        self.connection_ids = connection_ids
-        self.dbt_dir = dbt_dir
-        
-    def deploy(self):
-        airbyte_objs = []
-        for connection_id in self.connection_ids:
-            airbyte = Airbyte(connection_id=connection_id)
-            airbyte_objs.append(airbyte)
-
-        dbt_obj = Dbt(self.dbt_dir, os.getenv('DBT_VENV'))
-
-
-        for airbyte_obj in airbyte_objs:
-
-            flow = Flow(airbyte=airbyte_obj, dbt=dbt_obj, org_name=self.name)
-
-            # Deploy a dbt flow
-            Deployment.build_from_flow(
-                flow=flow.dbt_flow.with_options(name=f'{self.name}_dbt_flow'),
-                name=f"{self.name} - dbt",
-                work_queue_name="ddp",
-                tags = [self.name],
-                apply=True
-            )
-
-            # Deploy a airbyte flow
-            Deployment.build_from_flow(
-                flow=flow.airbyte_flow.with_options(name=f'{self.name}_airbyte_flow'),
-                name=f"{self.name} - airbyte",
-                work_queue_name="ddp",
-                tags = [airbyte.connection_id, self.name],
-                apply=True,
-            )
-
-            # Deploy a airbyte + dbt flow
-            Deployment.build_from_flow(
-                flow=flow.airbyte_dbt_flow.with_options(name=f'{self.name}_airbyte_dbt_flow'),
-                name=f"{self.name} - airbyte + dbt",
-                work_queue_name="ddp",
-                tags = [airbyte.connection_id, self.name],
-                apply=True
-            )
-
-if __name__ == "__main__":
+async def main():
 
     try:
         config = None
@@ -92,11 +39,28 @@ if __name__ == "__main__":
         org_name = args.deploy
         connection_ids = config[org_name]['connection_ids']
         dbt_dir = config[org_name]['dbt_dir']
-        
-        organization = Organization(org_name, connection_ids, dbt_dir)
 
-        organization.deploy()
+        # create a datbase session
+        url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+        engine = create_async_engine(
+            url,
+            echo=True,
+        )
+        session = sessionmaker(engine, class_=AsyncSession)
+        
+        organization = Organization(org_name, connection_ids, dbt_dir, session())
+
+        await organization.reset_deployments()
+
+        await organization.close_session()
 
     except Exception as e:
 
         print(e)
+
+if __name__ == "__main__":
+
+    asyncio.run(main())
+    
+
+   
