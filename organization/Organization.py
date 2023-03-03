@@ -49,7 +49,7 @@ class Organization(BaseModel):
             deployment = await Deployment.build_from_flow(
                 flow=flow.dbt_flow.with_options(name=f'{self.name}_dbt_flow'),
                 name=f"{self.name} - dbt",
-                work_queue_name="ddp",
+                work_queue_name=os.getenv('PREFECT_WORK_QUEUE'),
                 tags = [self.name],
             )
             if self.schedule:
@@ -64,7 +64,7 @@ class Organization(BaseModel):
                 deployment = await Deployment.build_from_flow(
                     flow=flow.airbyte_flow.with_options(name=f'{self.name}_airbyte_flow'),
                     name=f"{self.name} - airbyte",
-                    work_queue_name="ddp",
+                    work_queue_name=os.getenv('PREFECT_WORK_QUEUE'),
                     tags = [airbyte_obj.connection_id, self.name],
                 )
                 if self.schedule:
@@ -75,7 +75,7 @@ class Organization(BaseModel):
                 deployment = await Deployment.build_from_flow(
                     flow=flow.airbyte_dbt_flow.with_options(name=f'{self.name}_airbyte_dbt_flow'),
                     name=f"{self.name} - airbyte + dbt",
-                    work_queue_name="ddp",
+                    work_queue_name=os.getenv('PREFECT_WORK_QUEUE'),
                     tags = [airbyte_obj.connection_id, self.name],
                 )
                 if self.schedule:
