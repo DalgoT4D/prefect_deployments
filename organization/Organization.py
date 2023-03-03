@@ -43,19 +43,22 @@ class Organization(BaseModel):
 
             dbt_obj = Dbt(self.dbt_dir, os.getenv('DBT_VENV'))
 
+            flow = Flow(airbyte=None, dbt=dbt_obj, org_name=self.name)
+
+            # Deploy a dbt flow
+            deployment = await Deployment.build_from_flow(
+                flow=flow.dbt_flow.with_options(name=f'{self.name}_dbt_flow'),
+                name=f"{self.name} - dbt",
+                work_queue_name="ddp",
+                tags = [self.name],
+            )
+            if self.schedule:
+                deployment.schedule = CronSchedule(cron = self.schedule)
+            await deployment.apply()
+
             for airbyte_obj in airbyte_objs:
 
-                flow = Flow(airbyte=airbyte_obj, dbt=dbt_obj, org_name=self.name)
-
-                # Deploy a dbt flow
-                deployment = await Deployment.build_from_flow(
-                    flow=flow.dbt_flow.with_options(name=f'{self.name}_dbt_flow'),
-                    name=f"{self.name} - dbt",
-                    work_queue_name="ddp",
-                    tags = [self.name],
-                )
-                deployment.schedule = CronSchedule(cron = self.schedule)
-                await deployment.apply()
+                flow.airbyte = airbyte_obj
 
                 # Deploy a airbyte flow
                 deployment = await Deployment.build_from_flow(
@@ -64,17 +67,19 @@ class Organization(BaseModel):
                     work_queue_name="ddp",
                     tags = [airbyte_obj.connection_id, self.name],
                 )
-                deployment.schedule = CronSchedule(cron = self.schedule)
+                if self.schedule:
+                    deployment.schedule = CronSchedule(cron = self.schedule)
                 await deployment.apply()
 
                 # Deploy a airbyte + dbt flow
-                await Deployment.build_from_flow(
+                deployment = await Deployment.build_from_flow(
                     flow=flow.airbyte_dbt_flow.with_options(name=f'{self.name}_airbyte_dbt_flow'),
                     name=f"{self.name} - airbyte + dbt",
                     work_queue_name="ddp",
                     tags = [airbyte_obj.connection_id, self.name],
                 )
-                deployment.schedule = CronSchedule(cron = self.schedule)
+                if self.schedule:
+                    deployment.schedule = CronSchedule(cron = self.schedule)
                 await deployment.apply()
 
         except Exception as e:
