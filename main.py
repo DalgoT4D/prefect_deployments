@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 import asyncio
 from sqlalchemy import create_engine
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL, PREFECT_API_URL
 from sqlalchemy.ext.asyncio import create_async_engine, async_session, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -31,14 +31,27 @@ async def main():
             help='please enter the name of the NGO',
             metavar='<org_name>'
         )
+        parser.add_argument(
+            '--reset',
+            required=False,
+            choices=['yes', 'no'],
+            default='no',
+            help='resetting the deployments will remove all deployments and create fresh ones',
+            metavar='<yes or no>'
+        )
         args = parser.parse_args()
 
         if args.deploy not in config:
             raise Exception(f'Config for {args.deploy} org not found')
         
+        # cli args
         org_name = args.deploy
+        reset = args.reset
+
+        # config params
         connection_ids = config[org_name]['connection_ids']
         dbt_dir = config[org_name]['dbt_dir']
+        schedule = config[org_name]['schedule']
 
         # create a datbase session
         url = PREFECT_API_DATABASE_CONNECTION_URL.value()
@@ -47,10 +60,14 @@ async def main():
             echo=True,
         )
         session = sessionmaker(engine, class_=AsyncSession)
-        
-        organization = Organization(org_name, connection_ids, dbt_dir, session())
 
-        await organization.reset_deployments()
+        organization = Organization(org_name, connection_ids, dbt_dir, session(), schedule)
+
+        match reset:
+            case 'yes':
+                await organization.reset_deployments()
+            case 'no':
+                await organization.deploy()
 
         await organization.close_session()
 
