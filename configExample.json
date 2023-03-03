@@ -1,10 +1,12 @@
 {
     "stir": {
         "dbt_dir": "/Path/to/dbt/code",
-        "connection_ids": ["list of connection ids"]
+        "connection_ids": ["list of connection ids"],
+        "schedule": "0 */2 * * *"
     },
     "sneha": {
         "dbt_dir": "/Path/to/dbt/code",
-        "connection_ids": ["list of connection ids"]
+        "connection_ids": ["list of connection ids"],
+        "schedule": "crons expression"
     }
 }
