@@ -48,11 +48,6 @@ async def main():
         org_name = args.deploy
         reset = args.reset
 
-        # config params
-        connection_ids = config[org_name]['connection_ids']
-        dbt_dir = config[org_name]['dbt_dir']
-        schedule = config[org_name]['schedule']
-
         # create a datbase session
         url = PREFECT_API_DATABASE_CONNECTION_URL.value()
         engine = create_async_engine(
@@ -61,14 +56,9 @@ async def main():
         )
         session = sessionmaker(engine, class_=AsyncSession)
 
-        organization = Organization(org_name, connection_ids, dbt_dir, session(), schedule)
+        organization = Organization(name=org_name, session=session(), pipelines=config[org_name])
 
-        match reset:
-            case 'yes':
-                await organization.reset_deployments()
-            case 'no':
-                await organization.deploy()
-
+        organization.deploy(reset == 'yes')
         await organization.close_session()
 
     except Exception as e:

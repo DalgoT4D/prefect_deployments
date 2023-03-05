@@ -1,6 +1,6 @@
 import os
 import requests
-from typing import List
+from typing import List, Mapping, Union
 from pydantic import BaseModel
 from prefect.deployments import Deployment
 from prefect.server.models.deployments import read_deployments, delete_deployment
@@ -16,98 +16,86 @@ from flows.Flow import Flow
 
 class Organization(BaseModel):
     name: str = None
-    connection_ids: List[str] = []
-    dbt_dir: str = None
+    pipelines: List[Mapping[str, Union[str, List[str]]]]
     session: Session = None
-    schedule: str = None
 
     class Config:
         arbitrary_types_allowed=True
 
-    def __init__(self, name: str, connection_ids: List[str], dbt_dir: str, session: Session, schedule: str):
+    def __init__(self, name: str, session: Session, pipelines: List[Mapping[str, Union[str, List[str]]]]):
         super().__init__()
 
         self.name = name
-        self.connection_ids = connection_ids
-        self.dbt_dir = dbt_dir
-        self.schedule = schedule
-        
+        self.pipelines = pipelines
         self.session = session
         
-    async def deploy(self):
+    async def deploy(self, reset = False):
         try:
-            airbyte_objs: List[Airbyte] = []
-            for connection_id in self.connection_ids:
-                airbyte = Airbyte(connection_id=connection_id)
-                airbyte_objs.append(airbyte)
+            
+            if reset:
 
-            dbt_obj = Dbt(self.dbt_dir, os.getenv('DBT_VENV'))
+                deploymentFilter = DeploymentFilterTags(all_=[self.name])
+                flows = await read_flows(self.session, deployment_filter=deploymentFilter)
+                api_url = PREFECT_UI_API_URL.value()
 
-            flow = Flow(airbyte=None, dbt=dbt_obj, org_name=self.name)
+                # delete a flow removes the deployments too
+                for flow in flows:
+                    requests.delete(api_url + f'/flows/{flow.id}')
+                    # the code below doesn't seem to work
+                    # await delete_flow(self.session, flow.id)
 
-            # Deploy a dbt flow
-            deployment = await Deployment.build_from_flow(
-                flow=flow.dbt_flow.with_options(name=f'{self.name}_dbt_flow'),
-                name=f"{self.name} - dbt",
-                work_queue_name=os.getenv('PREFECT_WORK_QUEUE'),
-                tags = [self.name],
-            )
-            if self.schedule:
-                deployment.schedule = CronSchedule(cron = self.schedule)
-            await deployment.apply()
+            for pipeline in self.pipelines:
+                
+                # Each pipeline will deployed and run as a flow as per the schedule
+                
+                airbyte_objs = []
+                dbt_obj = None
+                flow_name = ''
+                deployment_name = ''
+                flow_function = None
+                tags = [self.name]
+                work_queue_name = os.getenv('PREFECT_WORK_QUEUE'),
 
-            for airbyte_obj in airbyte_objs:
+                has_airbyte = False
+                has_dbt = False
+                
+                # Check if airbyte connections are part of pipeline
+                if 'connection_ids' in pipeline and len(pipeline['connection_ids']) > 0:
+                    has_airbyte = True
+                    for connection_id in pipeline['connection_ids']:
+                        airbyte = Airbyte(connection_id=connection_id)
+                        airbyte_objs.append(airbyte)
 
-                flow.airbyte = airbyte_obj
+                # Check if dbt transformation is part of repo
+                if 'dbt_dir' in pipeline:
+                    has_dbt = True
+                    dbt_obj = Dbt(pipeline['dbt_dir'], os.getenv('DBT_VENV'))
 
-                # Deploy a airbyte flow
+                flow = Flow(airbyte_arr=airbyte_objs, dbt=dbt_obj, org_name=self.name)
+
+                if has_airbyte and has_dbt:
+                    flow_name = f'{self.name}_airbyte_dbt_flow'
+                    deployment_name = f'{self.name}_airbyte_dbt_deploy'
+                    flow_function = getattr(flow, 'airbyte_dbt_flow') # Callable
+                elif has_airbyte:
+                    flow_name = f'{self.name}_airbyte_flow'
+                    deployment_name = f'{self.name}_airbyte_deploy'
+                    flow_function = getattr(flow, 'airbyte_flow') # Callable
+                elif has_dbt:
+                    flow_name = f'{self.name}_dbt_flow'
+                    deployment_name = f'{self.name}_dbt_deploy'
+                    flow_function = getattr(flow, 'dbt_flow') # Callable
+
                 deployment = await Deployment.build_from_flow(
-                    flow=flow.airbyte_flow.with_options(name=f'{self.name}_airbyte_flow'),
-                    name=f"{self.name} - airbyte",
-                    work_queue_name=os.getenv('PREFECT_WORK_QUEUE'),
-                    tags = [airbyte_obj.connection_id, self.name],
+                    flow=flow_function.with_options(name=flow_name),
+                    name=deployment_name,
+                    work_queue_name=work_queue_name,
+                    tags = tags,
                 )
-                if self.schedule:
-                    deployment.schedule = CronSchedule(cron = self.schedule)
+                if 'schedule' in pipeline:
+                    deployment.schedule = CronSchedule(cron = pipeline['schedule'])
                 await deployment.apply()
 
-                # Deploy a airbyte + dbt flow
-                deployment = await Deployment.build_from_flow(
-                    flow=flow.airbyte_dbt_flow.with_options(name=f'{self.name}_airbyte_dbt_flow'),
-                    name=f"{self.name} - airbyte + dbt",
-                    work_queue_name=os.getenv('PREFECT_WORK_QUEUE'),
-                    tags = [airbyte_obj.connection_id, self.name],
-                )
-                if self.schedule:
-                    deployment.schedule = CronSchedule(cron = self.schedule)
-                await deployment.apply()
-
-        except Exception as e:
-
-            print(e)
-
-            await self.close_session()
-
-    async def reset_deployments(self):
-
-        try:
-
-            deploymentFilter = DeploymentFilterTags(all_=[self.name])
-
-            flows = await read_flows(self.session, deployment_filter=deploymentFilter)
-
-            api_url = PREFECT_UI_API_URL.value()
-
-            # delete a flow removes the deployments too
-            for flow in flows:
-                requests.delete(api_url + f'/flows/{flow.id}')
-                # the code below doesn't seem to work
-                # await delete_flow(self.session, flow.id)
-
-            await self.deploy()
-
-            return
-        
         except Exception as e:
 
             print(e)
