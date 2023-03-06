@@ -58,7 +58,8 @@ async def main():
 
         organization = Organization(name=org_name, session=session(), pipelines=config[org_name])
 
-        organization.deploy(reset == 'yes')
+        await organization.deploy(reset == 'yes')
+        
         await organization.close_session()
 
     except Exception as e:

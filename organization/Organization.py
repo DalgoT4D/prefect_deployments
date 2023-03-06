@@ -16,13 +16,13 @@ from flows.Flow import Flow
 
 class Organization(BaseModel):
     name: str = None
-    pipelines: List[Mapping[str, Union[str, List[str]]]]
+    pipelines: List = None
     session: Session = None
 
     class Config:
         arbitrary_types_allowed=True
 
-    def __init__(self, name: str, session: Session, pipelines: List[Mapping[str, Union[str, List[str]]]]):
+    def __init__(self, name: str, session: Session, pipelines: List):
         super().__init__()
 
         self.name = name
@@ -44,6 +44,8 @@ class Organization(BaseModel):
                     # the code below doesn't seem to work
                     # await delete_flow(self.session, flow.id)
 
+            work_queue_name = os.getenv('PREFECT_WORK_QUEUE')
+
             for pipeline in self.pipelines:
                 
                 # Each pipeline will deployed and run as a flow as per the schedule
@@ -54,7 +56,6 @@ class Organization(BaseModel):
                 deployment_name = ''
                 flow_function = None
                 tags = [self.name]
-                work_queue_name = os.getenv('PREFECT_WORK_QUEUE'),
 
                 has_airbyte = False
                 has_dbt = False
@@ -67,7 +68,7 @@ class Organization(BaseModel):
                         airbyte_objs.append(airbyte)
 
                 # Check if dbt transformation is part of repo
-                if 'dbt_dir' in pipeline:
+                if 'dbt_dir' in pipeline and pipeline['dbt_dir'] is not None:
                     has_dbt = True
                     dbt_obj = Dbt(pipeline['dbt_dir'], os.getenv('DBT_VENV'))
 

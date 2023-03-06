@@ -1,12 +1,14 @@
 {
-    "stir": {
-        "dbt_dir": "/Path/to/dbt/code",
-        "connection_ids": ["list of connection ids"],
-        "schedule": "0 */2 * * *"
-    },
-    "sneha": {
-        "dbt_dir": "/Path/to/dbt/code",
-        "connection_ids": ["list of connection ids"],
-        "schedule": "crons expression"
-    }
+    "stir": [
+        {
+            "connection_ids": ["<connection_ids>"],
+            "dbt_dir": null,
+            "schedule": "0 */2 * * *"
+        },
+        {
+            "connection_ids": ["<connection_ids>"],
+            "dbt_dir": "/Path/to/dbt/code/repo",
+            "schedule": "0 */2 * * *"
+        }
+    ]
 }
