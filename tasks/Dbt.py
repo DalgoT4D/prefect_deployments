@@ -23,16 +23,16 @@ class Dbt(BaseModel):
         shell_run_command(command=f'git pull', cwd=self.dbt_code_path)
 
     def dbt_deps(self) -> None:
-        shell_run_command(helper_command= f'source ${self.dbt_venv_path}/bin/activate', command=f'dbt deps', cwd=self.dbt_code_path)
+        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt deps', cwd=self.dbt_code_path)
 
     def dbt_source_snapshot_freshness(self):
-        shell_run_command(helper_command= f'source ${self.dbt_venv_path}/bin/activate', command=f'dbt source snapshot-freshness', cwd=self.dbt_code_path)
+        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt source snapshot-freshness', cwd=self.dbt_code_path)
 
     def dbt_run(self) -> None:
-        shell_run_command(helper_command= f'source ${self.dbt_venv_path}/bin/activate', command=f'dbt run', cwd=self.dbt_code_path)
+        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt run', cwd=self.dbt_code_path)
 
     def dbt_test(self) -> None:
-        shell_run_command(helper_command= f'source ${self.dbt_venv_path}/bin/activate', command=f'dbt test', cwd=self.dbt_code_path)
+        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt test', cwd=self.dbt_code_path)
 
     def dbt_docs_generate(self) -> None:
-        shell_run_command(helper_command= f'source ${self.dbt_venv_path}/bin/activate', command=f'dbt docs generate', cwd=self.dbt_code_path)
+        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt docs generate', cwd=self.dbt_code_path)
