@@ -1,5 +1,6 @@
 import os
 import requests
+from prefect import flow
 from typing import List, Mapping, Union
 from pydantic import BaseModel
 from prefect.deployments import Deployment
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from tasks.Dbt import Dbt
 from tasks.Airbyte import Airbyte
-from flows.Flow import Flow
+from flows.Flow import airbyte_flow, dbt_flow, airbyte_dbt_flow
 
 class Organization(BaseModel):
     name: str = None
@@ -61,7 +62,7 @@ class Organization(BaseModel):
                 has_dbt = False
                 
                 # Check if airbyte connections are part of pipeline
-                if 'connection_ids' in pipeline and len(pipeline['connection_ids']) > 0:
+                if 'connection_ids' in pipeline and pipeline['connection_ids'] is not None and len(pipeline['connection_ids']) > 0:
                     has_airbyte = True
                     for connection_id in pipeline['connection_ids']:
                         airbyte = Airbyte(connection_id=connection_id)
@@ -72,20 +73,21 @@ class Organization(BaseModel):
                     has_dbt = True
                     dbt_obj = Dbt(pipeline['dbt_dir'], os.getenv('DBT_VENV'))
 
-                flow = Flow(airbyte_arr=airbyte_objs, dbt=dbt_obj)
-
                 if has_airbyte and has_dbt:
                     flow_name = f'{self.name}_airbyte_dbt_flow'
                     deployment_name = f'{self.name}_airbyte_dbt_deploy'
-                    flow_function = getattr(flow, 'airbyte_dbt_flow') # Callable
+                    # flow_function = getattr(flow, 'airbyte_dbt_flow') # Callable
+                    flow_function = airbyte_dbt_flow
                 elif has_airbyte:
                     flow_name = f'{self.name}_airbyte_flow'
                     deployment_name = f'{self.name}_airbyte_deploy'
-                    flow_function = getattr(flow, 'airbyte_flow') # Callable
+                    # flow_function = getattr(flow, 'airbyte_flow') # Callable
+                    flow_function = airbyte_flow
                 elif has_dbt:
                     flow_name = f'{self.name}_dbt_flow'
                     deployment_name = f'{self.name}_dbt_deploy'
-                    flow_function = getattr(flow, 'dbt_flow') # Callable
+                    # flow_function = getattr(flow, 'dbt_flow') # Callable
+                    flow_function = dbt_flow
 
                 deployment = await Deployment.build_from_flow(
                     flow=flow_function.with_options(name=flow_name),
@@ -93,6 +95,7 @@ class Organization(BaseModel):
                     work_queue_name=work_queue_name,
                     tags = tags,
                 )
+                deployment.parameters = {'flow': {'airbytes': airbyte_objs, 'dbt': dbt_obj}}
                 if 'schedule' in pipeline and len(pipeline['schedule']) > 3:
                     deployment.schedule = CronSchedule(cron = pipeline['schedule'])
                 await deployment.apply()

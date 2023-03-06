@@ -13,6 +13,6 @@ class Airbyte(BaseModel):
 
         trigger_sync(
             connection_id=self.connection_id,
-            poll_interval_s=3,
+            poll_interval_s=15,
             status_updates=True
         )
