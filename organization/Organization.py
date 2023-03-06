@@ -96,7 +96,7 @@ class Organization(BaseModel):
                     tags = tags,
                 )
                 deployment.parameters = {'flow': {'airbytes': airbyte_objs, 'dbt': dbt_obj}}
-                if 'schedule' in pipeline and len(pipeline['schedule']) > 3:
+                if 'schedule' in pipeline and pipeline['schedule'] is not None and len(pipeline['schedule']) > 3:
                     deployment.schedule = CronSchedule(cron = pipeline['schedule'])
                 await deployment.apply()
 
