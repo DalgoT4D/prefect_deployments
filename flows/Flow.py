@@ -1,12 +1,12 @@
 from prefect import flow
-from typing import List
+from typing import List, Union
 from tasks.Airbyte import Airbyte
 from tasks.Dbt import Dbt
 from pydantic import BaseModel
 
 class Flow(BaseModel):
-    airbytes: List[Airbyte] | None
-    dbt: Dbt | None
+    airbytes: Union[List[Airbyte], None]
+    dbt: Union[Dbt, None]
 
 @flow
 def airbyte_flow(flow: Flow):
