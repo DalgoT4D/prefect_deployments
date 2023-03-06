@@ -72,7 +72,7 @@ class Organization(BaseModel):
                     has_dbt = True
                     dbt_obj = Dbt(pipeline['dbt_dir'], os.getenv('DBT_VENV'))
 
-                flow = Flow(airbyte_arr=airbyte_objs, dbt=dbt_obj, org_name=self.name)
+                flow = Flow(airbyte_arr=airbyte_objs, dbt=dbt_obj)
 
                 if has_airbyte and has_dbt:
                     flow_name = f'{self.name}_airbyte_dbt_flow'
@@ -93,9 +93,11 @@ class Organization(BaseModel):
                     work_queue_name=work_queue_name,
                     tags = tags,
                 )
-                if 'schedule' in pipeline:
+                if 'schedule' in pipeline and len(pipeline['schedule']) > 3:
                     deployment.schedule = CronSchedule(cron = pipeline['schedule'])
                 await deployment.apply()
+
+                return deployment
 
         except Exception as e:
 
