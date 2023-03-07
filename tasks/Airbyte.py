@@ -1,3 +1,4 @@
+from prefect import task, flow
 from pydantic import BaseModel
 from prefect_airbyte.connections import trigger_sync
 
@@ -11,7 +12,7 @@ class Airbyte(BaseModel):
 
     def sync(self) -> None:
 
-        trigger_sync(
+        trigger_sync.with_options(name="airbyte_sync")(
             connection_id=self.connection_id,
             poll_interval_s=15,
             status_updates=True

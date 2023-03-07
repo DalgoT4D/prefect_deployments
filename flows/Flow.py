@@ -8,12 +8,12 @@ class Flow(BaseModel):
     airbytes: Union[List[Airbyte], None]
     dbt: Union[Dbt, None]
 
-@flow
+@flow(flow_run_name='airbyte_flow')
 def airbyte_flow(flow: Flow):
     for airbyte in flow.airbytes:
         airbyte.sync()
 
-@flow
+@flow(flow_run_name='dbt_flow')
 def dbt_flow(flow: Flow):
     flow.dbt.pull_dbt_repo()
     flow.dbt.dbt_deps()
@@ -21,7 +21,7 @@ def dbt_flow(flow: Flow):
     flow.dbt.dbt_run()
     flow.dbt.dbt_test()
 
-@flow
+@flow(flow_run_name='airbyte_dbt_flow')
 def airbyte_dbt_flow(flow: Flow):
     
     for airbyte in flow.airbytes:
