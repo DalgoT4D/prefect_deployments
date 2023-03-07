@@ -1,38 +1,42 @@
+from prefect import task
 from prefect_shell import shell_run_command
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 class Dbt(BaseModel):
-    dbt_code_path: str = None
-    dbt_venv_path: str = None
+    dbt_code_path: str
+    dbt_venv_path: str
 
-    def __init__(self, dbt_code_path: str, dbt_venv_path: str) -> None:
-        super().__init__()
-        
-        if Path(dbt_code_path).is_dir():
-            self.dbt_code_path = dbt_code_path
-        else:
+    @validator('dbt_code_path')
+    def check_dbt_code_dir_exists(classObj, value):
+        if Path(value).is_dir() is None:
             raise Exception('Dbt organization repo does not exist')
-        
-        if Path(dbt_venv_path).is_dir():
-            self.dbt_venv_path = dbt_venv_path
-        else:
+
+    @validator('dbt_venv_path')
+    def check_dbt_venv_dir_exists(classObj, value):
+        if Path(value).is_dir() is None:
             raise Exception('Dbt virtual environment is not setup')
 
-    def pull_dbt_repo(self) -> None:
-        shell_run_command(command=f'git pull', cwd=self.dbt_code_path)
+@task(task_run_name='pull_dbt_repo')
+def pull_dbt_repo(dbt: Dbt) -> None:
+    shell_run_command(command=f'git pull', cwd=dbt.dbt_code_path)
 
-    def dbt_deps(self) -> None:
-        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt deps', cwd=self.dbt_code_path)
+@task(task_run_name='dbt_deps')
+def dbt_deps(dbt: Dbt) -> None:
+    shell_run_command(helper_command= f'source {dbt.dbt_venv_path}/bin/activate', command=f'dbt deps', cwd=dbt.dbt_code_path)
 
-    def dbt_source_snapshot_freshness(self):
-        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt source snapshot-freshness', cwd=self.dbt_code_path)
+@task(task_run_name='dbt_source_snapshot_freshness')
+def dbt_source_snapshot_freshness(dbt: Dbt):
+    shell_run_command(helper_command= f'source {dbt.dbt_venv_path}/bin/activate', command=f'dbt source snapshot-freshness', cwd=dbt.dbt_code_path)
 
-    def dbt_run(self) -> None:
-        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt run', cwd=self.dbt_code_path)
+@task(task_run_name='dbt_run')
+def dbt_run(dbt: Dbt) -> None:
+    shell_run_command(helper_command= f'source {dbt.dbt_venv_path}/bin/activate', command=f'dbt run', cwd=dbt.dbt_code_path)
 
-    def dbt_test(self) -> None:
-        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt test', cwd=self.dbt_code_path)
+@task(task_run_name='dbt_test')
+def dbt_test(dbt: Dbt) -> None:
+    shell_run_command(helper_command= f'source {dbt.dbt_venv_path}/bin/activate', command=f'dbt test', cwd=dbt.dbt_code_path)
 
-    def dbt_docs_generate(self) -> None:
-        shell_run_command(helper_command= f'source {self.dbt_venv_path}/bin/activate', command=f'dbt docs generate', cwd=self.dbt_code_path)
+@task(task_run_name='dbt_docs_generate')
+def dbt_docs_generate(dbt: Dbt) -> None:
+    shell_run_command(helper_command= f'source {dbt.dbt_venv_path}/bin/activate', command=f'dbt docs generate', cwd=dbt.dbt_code_path)
