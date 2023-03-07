@@ -8,14 +8,21 @@ class Dbt(BaseModel):
     dbt_venv_path: str
 
     @validator('dbt_code_path')
-    def check_dbt_code_dir_exists(classObj, value):
+    def check_dbt_code_dir_exists(value):
         if Path(value).is_dir() is None:
             raise Exception('Dbt organization repo does not exist')
 
     @validator('dbt_venv_path')
-    def check_dbt_venv_dir_exists(classObj, value):
+    def check_dbt_venv_dir_exist(value):
         if Path(value).is_dir() is None:
             raise Exception('Dbt virtual environment is not setup')
+        
+    def __init__(self, dbt_code_path, dbt_venv_path):
+        super().__init__()
+
+        self.dbt_code_path = dbt_code_path
+        self.dbt_venv_path = dbt_venv_path
+
 
 @task(task_run_name='pull_dbt_repo')
 def pull_dbt_repo(dbt: Dbt) -> None:

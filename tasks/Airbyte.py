@@ -5,6 +5,9 @@ from prefect_airbyte.connections import trigger_sync
 class Airbyte(BaseModel):
     connection_id: str
 
+    def __init__(self, connection_id):
+        super().__init__()
+
 @task(name='airbyte_sync', task_run_name='airbyte_sync_{airbyte.connection_id}')
 def sync(airbyte: Airbyte) -> None:
 
