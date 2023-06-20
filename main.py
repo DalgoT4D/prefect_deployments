@@ -27,7 +27,7 @@ async def main():
         parser.add_argument(
             '--deploy',
             required=True,
-            choices=['stir', 'sneha'],
+            choices=['stir', 'sneha', 'shri'],
             help='please enter the name of the NGO',
             metavar='<org_name>'
         )
